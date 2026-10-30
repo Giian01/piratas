@@ -1,0 +1,147 @@
+:root {
+  color-scheme: dark;
+  background: #0e2025;
+  color: #f3dfb5;
+  font-family: monospace;
+}
+
+body {
+  margin: 0;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.menu-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  padding: 24px;
+  text-align: center;
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(40px, 8vw, 56px);
+  letter-spacing: 0.12em;
+}
+
+h2 {
+  font-size: clamp(24px, 6vw, 36px);
+}
+
+button {
+  padding: 16px 32px;
+  border: 2px solid #bc9256;
+  border-radius: 4px;
+  background: #edcc95;
+  box-shadow: 0 5px 0 #8a6438;
+  color: #17363c;
+  font: 700 20px monospace;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #ffe2b1;
+}
+
+button:focus-visible {
+  outline: 3px solid #fff3d7;
+  outline-offset: 6px;
+}
+
+button:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #8a6438;
+}
+
+.game-ui { position: fixed; inset: 0; pointer-events: none; }
+.hud, .combat-hud { position: absolute; left: max(18px, 4vw); right: max(18px, 4vw); display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.hud { top: 18px; padding: 12px 16px; background: #142d32ed; border: 1px solid #c5995955; border-radius: 5px; box-shadow: 0 4px 16px #0004; }
+.eyebrow { display: block; color: #cfb88f; font-size: 10px; letter-spacing: .13em; }
+.vitality { display: grid; grid-template-columns: 1fr auto; gap: 5px 20px; min-width: 155px; }
+.vitality meter { width: 100%; height: 12px; grid-column: 1 / -1; accent-color: #68b577; }
+.run-stats { display: flex; align-items: center; gap: 26px; font-size: 15px; }
+.run-stats time { color: #fff2cf; font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hud-actions { display: flex; gap: 10px; pointer-events: auto; }
+.gold-counter { display: flex; align-items: center; justify-content: flex-end; gap: 9px; min-width: 70px; padding-left: 16px; border-left: 1px solid #c5995955; color: #ffda75; text-align: right; }
+.gold-counter .eyebrow { color: #e6c78a; }
+.gold-counter output { display: block; font-size: 23px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.gold-icon { display: block; width: 18px; height: 20px; border: 2px solid #9b6a25; border-radius: 50%; background: #edbf49; box-shadow: inset 3px 0 #ffdf79, inset -3px 0 #bd882d; }
+.gold-icon::after { content: ''; display: block; width: 3px; height: 10px; margin: 5px auto; background: #fff0ad; }
+.game-ui button { padding: 9px 13px; font-size: 13px; box-shadow: 0 3px 0 #8a6438; }
+.game-ui button:disabled { opacity: .45; cursor: default; }
+.combat-hud { bottom: 20px; align-items: flex-end; }
+.attack-card { display: flex; flex-direction: column; gap: 7px; min-width: 220px; padding: 15px 18px; background: #142d32ed; border: 1px solid #c5995977; border-left: 3px solid #e4bd7b; border-radius: 4px; }
+.attack-card strong { color: #fff0cc; font-size: 22px; }
+.attack-card progress { width: 100%; height: 7px; accent-color: #e4bd7b; }
+#attack-state { font-size: 10px; color: #d0c5ad; }
+.controls { margin: 0; padding: 10px 14px; font-size: 11px; line-height: 2; background: #142d32db; border-radius: 4px; color: #ecdcbe; }
+kbd { font: inherit; font-weight: bold; color: #fff4d5; }
+.play-overlay { position: absolute; inset: 100px 0 145px; display: grid; place-items: center; background: #0c1b235c; pointer-events: auto; }
+.pause-card { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 30px 42px; background: #142d32fa; border: 2px solid #c59959; border-radius: 6px; text-align: center; box-shadow: 0 12px 40px #0005; }
+.pause-card h2 { font-size: 26px; }
+.pause-card p { margin: 0 0 6px; color: #d0c5ad; }
+canvas:focus-visible { outline: none; }
+.experience-hud { position: absolute; top: 96px; left: max(18px, 4vw); display: grid; grid-template-columns: 1fr auto; gap: 5px 18px; width: min(340px, calc(92vw - 24px)); padding: 9px 12px; border: 1px solid #7fc5c74d; border-radius: 4px; background: #142d32ed; }
+.experience-hud .eyebrow { align-self: center; color: #a9d9d6; }
+#player-level { color: #d9ffff; font-size: 15px; }
+#xp-label { color: #b8e6e5; font-size: 11px; font-variant-numeric: tabular-nums; }
+#xp-bar { grid-column: 1 / -1; width: 100%; height: 7px; accent-color: #5cd6dc; }
+.level-up-dialog { box-sizing: border-box; width: min(800px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 30px; border: 2px solid #75c9c9; border-radius: 8px; background: #132c32; color: #f3dfb5; text-align: center; pointer-events: auto; box-shadow: 0 20px 80px #0008; }
+.level-up-dialog::backdrop { background: #07181cbd; }
+.level-up-dialog > .eyebrow { color: #91e0dd; margin-bottom: 10px; }
+.level-up-dialog h2 { font-size: 32px; color: #dcffff; }
+.level-up-dialog > p { margin: 12px 0 22px; color: #d0d8cb; font-size: 13px; }
+.level-up-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.game-ui .level-option { display: flex; min-height: 158px; padding: 20px 12px; flex-direction: column; align-items: center; justify-content: center; gap: 16px; border-color: #719c99; background: #234149; color: #dfefdf; box-shadow: 0 4px 0 #0c2027; }
+.game-ui .level-option:hover { background: #2d555b; border-color: #adede1; }
+.level-option strong { font-size: 20px; }
+.level-option > span:last-child { font-size: 12px; font-weight: normal; color: #bdcfbf; }
+.option-number { color: #8fded9; font-size: 13px; letter-spacing: .15em; }
+.level-up-dialog > .pending-upgrades { margin: 22px 0 0; font-size: 11px; color: #a5bbb5; }
+@media (max-width: 850px) {
+  .hud { display: grid; grid-template-columns: minmax(100px, 1fr) auto auto; gap: 8px; padding: 10px; left: 10px; right: 10px; }
+  .vitality { min-width: 100px; font-size: 10px; gap: 4px; }
+  .run-stats { gap: 8px; font-size: 10px; }
+  .run-stats time { font-size: 15px; }
+  .hud-actions { grid-row: 2; grid-column: 1 / -1; justify-content: flex-end; gap: 6px; }
+  .gold-counter { grid-row: 1; grid-column: 3; min-width: 56px; gap: 6px; padding-left: 8px; }
+  .gold-counter output { font-size: 18px; }
+  .gold-icon { width: 14px; height: 16px; }
+  .gold-icon::after { height: 8px; margin: 4px auto; }
+  .play-overlay { top: 125px; }
+  .game-ui button { font-size: 10px; padding: 8px; }
+  .combat-hud { left: 10px; right: 10px; bottom: 10px; gap: 10px; }
+  .attack-card { min-width: 160px; padding: 10px; }
+  .controls { font-size: 9px; padding: 8px; }
+  .experience-hud { top: 132px; left: 10px; }
+}
+@media (max-width: 560px) {
+  .level-up-dialog { padding: 20px 16px; }
+  .level-up-options { grid-template-columns: 1fr; gap: 10px; }
+  .game-ui .level-option { min-height: 76px; padding: 12px; gap: 7px; }
+  .level-option strong { font-size: 17px; }
+}

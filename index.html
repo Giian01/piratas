@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Piratas</title>
+  </head>
+  <body>
+    <div id="game" aria-hidden="true"></div>
+    <main>
+      <section id="main-menu" class="menu-screen" aria-labelledby="menu-title">
+        <h1 id="menu-title">PIRATAS</h1>
+        <button id="quick-start" type="button">Partida rápida</button>
+      </section>
+      <section id="quick-game" class="game-ui" aria-label="Partida rápida" hidden>
+        <header class="hud">
+          <div class="vitality"><span class="eyebrow">CAPITÁN</span><span id="hp-label">100 / 100</span><meter id="hp-bar" min="0" max="100" value="100" aria-label="Vida del capitán"></meter></div>
+          <div class="run-stats"><span><b id="kill-count">0</b> bajas</span><time id="run-time">00:00</time></div>
+          <div class="hud-actions"><button id="pause-game" type="button">Pausa</button><button id="back-to-menu" type="button">Volver al menú</button></div>
+          <div class="gold-counter"><span class="gold-icon" aria-hidden="true"></span><div><span class="eyebrow">ORO</span><output id="gold-count" aria-label="Oro recogido" aria-live="polite">0</output></div></div>
+        </header>
+        <div class="experience-hud"><span class="eyebrow">NIVEL <b id="player-level">1</b></span><span id="xp-label">0 / 3 EXP</span><progress id="xp-bar" max="3" value="0" aria-label="Experiencia hacia el siguiente nivel"></progress></div>
+        <footer class="combat-hud">
+          <div class="attack-card"><span class="eyebrow">FÍSICO · AUTOMÁTICO</span><strong>Sablazo</strong><progress id="attack-cooldown" max="1" value="1" aria-label="Preparación del sablazo"></progress><span id="attack-state">Listo · busca un enemigo</span></div>
+          <p class="controls"><kbd>WASD</kbd> / <kbd>↑ ↓ ← →</kbd> Moverse<br><kbd>P</kbd> / <kbd>Esc</kbd> Pausa<br>Acércate: el sable ataca solo.</p>
+        </footer>
+        <div id="play-overlay" class="play-overlay" hidden>
+          <div class="pause-card"><h2 id="overlay-title">En pausa</h2><p id="overlay-detail">El combate está detenido.</p><button id="resume-game" type="button">Continuar</button><button id="restart-game" type="button">Reiniciar partida</button></div>
+        </div>
+        <dialog id="level-up-dialog" class="level-up-dialog" aria-labelledby="level-up-title" aria-describedby="level-up-description">
+          <span class="eyebrow">SUBIDA DE NIVEL</span>
+          <h2 id="level-up-title">Nivel 2</h2>
+          <p id="level-up-description">Elige una opción para continuar.</p>
+          <div id="level-up-options" class="level-up-options"></div>
+          <p class="pending-upgrades">Opciones provisionales · Mejoras por definir</p>
+        </dialog>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
