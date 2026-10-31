@@ -15,24 +15,25 @@
       <section id="quick-game" class="game-ui" aria-label="Partida rápida" hidden>
         <header class="hud">
           <div class="vitality"><span class="eyebrow">CAPITÁN</span><span id="hp-label">100 / 100</span><meter id="hp-bar" min="0" max="100" value="100" aria-label="Vida del capitán"></meter></div>
-          <div class="run-stats"><span><b id="kill-count">0</b> bajas</span><time id="run-time">00:00</time></div>
+          <div class="run-stats"><span><b id="kill-count">0</b> bajas</span><span>Expedición <time id="run-time">00:00</time></span></div>
           <div class="hud-actions"><button id="pause-game" type="button">Pausa</button><button id="back-to-menu" type="button">Volver al menú</button></div>
           <div class="gold-counter"><span class="gold-icon" aria-hidden="true"></span><div><span class="eyebrow">ORO</span><output id="gold-count" aria-label="Oro recogido" aria-live="polite">0</output></div></div>
         </header>
         <div class="experience-hud"><span class="eyebrow">NIVEL <b id="player-level">1</b></span><span id="xp-label">0 / 3 EXP</span><progress id="xp-bar" max="3" value="0" aria-label="Experiencia hacia el siguiente nivel"></progress></div>
+        <div class="boss-hud" aria-live="polite"><strong id="stage-label">Etapa 1: Barco</strong><span id="stage-time"></span><span id="boss-countdown"></span><div id="boss-health" hidden><strong>Capitán Pirata</strong><meter id="boss-hp" min="0" max="1500" value="1500" aria-label="Vida del Capitán Pirata"></meter></div><span id="boss-notice" hidden>¡El Capitán Pirata ha llegado!</span></div>
         <footer class="combat-hud">
           <div class="attack-card"><span class="eyebrow">FÍSICO · AUTOMÁTICO</span><strong>Sablazo</strong><progress id="attack-cooldown" max="1" value="1" aria-label="Preparación del sablazo"></progress><span id="attack-state">Listo · busca un enemigo</span></div>
           <p class="controls"><kbd>WASD</kbd> / <kbd>↑ ↓ ← →</kbd> Moverse<br><kbd>P</kbd> / <kbd>Esc</kbd> Pausa<br>Acércate: el sable ataca solo.</p>
         </footer>
         <div id="play-overlay" class="play-overlay" hidden>
-          <div class="pause-card"><h2 id="overlay-title">En pausa</h2><p id="overlay-detail">El combate está detenido.</p><button id="resume-game" type="button">Continuar</button><button id="restart-game" type="button">Reiniciar partida</button></div>
+          <div class="pause-card"><h2 id="overlay-title">En pausa</h2><p id="overlay-detail">El combate está detenido.</p><button id="disembark" type="button" hidden>Desembarcar</button><button id="resume-game" type="button">Continuar</button><button id="restart-game" type="button">Reiniciar partida</button></div>
         </div>
         <dialog id="level-up-dialog" class="level-up-dialog" aria-labelledby="level-up-title" aria-describedby="level-up-description">
           <span class="eyebrow">SUBIDA DE NIVEL</span>
           <h2 id="level-up-title">Nivel 2</h2>
           <p id="level-up-description">Elige una opción para continuar.</p>
           <div id="level-up-options" class="level-up-options"></div>
-          <p class="pending-upgrades">Opciones provisionales · Mejoras por definir</p>
+          <p class="pending-upgrades">Mejoras temporales · Se reinician en cada partida</p>
         </dialog>
       </section>
     </main>

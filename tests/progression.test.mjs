@@ -126,7 +126,7 @@ test('la elección congela el mundo entero y P/Escape no pueden cancelar esa pau
   assert.equal(JSON.stringify({ player: arena.player, enemies: arena.enemies, time: arena.elapsed, cooldown: arena.attack.cooldownRemaining, xp: arena.progression.xp }), before);
   const attack = arena.player.attack;
   assert.equal(arena.chooseUpgrade(arena.progression.options[0].id, 2), true);
-  assert.equal(arena.player.attack, attack);
+  assert.equal(arena.player.attack, attack * 1.2);
   assert.equal(arena.paused, false);
   arena.update(0.01, { x: 1, y: 0 });
   assert.ok(arena.elapsed > 0.01);
