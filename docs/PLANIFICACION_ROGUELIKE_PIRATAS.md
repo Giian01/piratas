@@ -17,7 +17,7 @@ automático de las secciones 6.5 y 10. Diseño y hallazgos en
 El usuario también confirmó experiencia con caída 1/5, niveles exponenciales y
 tres opciones por subida que pausan la partida. Las mejoras concretas siguen
 sin definir. El prototipo usa cristales de 1 EXP y la curva ajustable
-`ceil(3 × 1.5^(nivel − 1))`; sus tres opciones provisionales aún no dan efectos.
+`ceil(3 × 1.5^(nivel − 1))`; sus tres opciones provisionales aplican daño, frecuencia y movimiento reales (ver README).
 Esta actualización sustituye el carácter propuesto de la experiencia y la
 elección entre tres mejoras en 6.3, sin dar por definidas las mejoras mismas.
 
@@ -325,3 +325,58 @@ No se ha definido multijugador, cuentas, inventario, tiendas, jefes, campañas, 
 ## 12. Instrucción de arranque para Codex
 
 > Trabaja en un prototipo de un juego roguelike de piratas usando Phaser + TypeScript + Vite. Usa este documento como contexto y distingue sus decisiones confirmadas de las propuestas. Conserva la dirección visual: pixel art de 32 bits, cámara satelital con ligera inclinación, cubierta extendida fuera de los bordes laterales e inferior, una única baranda superior con mar detrás, un mástil alto que sale del encuadre y numerosos enemigos con vestimenta pirata variada. Inspecciona primero el repositorio disponible. Comienza por una base ejecutable y una escena con movimiento, cubierta y mástil; después incorpora combate y enemigos. Mantén ajustables los parámetros propuestos y documenta los supuestos que utilices. Entrega avances jugables, verifica la compilación y prueba el comportamiento en navegador. No conviertas en requisitos definitivos las mecánicas que este documento marca como pendientes.
+
+
+## Incremento provisional autorizado: capitán y final del barco (30-10-2026)
+
+Implementado: llegada única tras 180 s activos con cuenta regresiva; retira la
+horda sin bajas ni botín y conserva drops. No existían proyectiles de enemigos
+normales. Capitán de 1500 HP, radio 22 y defensa 75; carga con aviso de 0,8 s,
+dirección fija, velocidad 490 y daño 24; abanico de cinco balas a 180 px/s,
+daño 16, separación de 20°, aviso de 0,9 s y duración máxima de 5 s.
+Recuperación de 1,6 s; entrada segura de 1,4 s. Parámetros en `BOSS`,
+`src/game/boss.ts`. Las advertencias ámbar son inofensivas; rojo sólido
+identifica carga y balas dañinas. El cuerpo solo daña durante la carga.
+Se acerca lentamente en recuperación para que el sable pueda alcanzarlo.
+
+Se reutilizan sable, daño, destello de impacto e invulnerabilidad de 0,75 s.
+Cartas y pausa congelan toda la simulación, incluidos avisos y proyectiles.
+Al morir el jefe se congela el combate, se limpian balas y aparece
+«¡Etapa completada!» con tiempo activo, bajas (incluido el jefe), nivel,
+monedas recogidas y botón para volver a jugar. Reiniciar restaura toda la
+partida y las estadísticas base. Se conservan los listeners existentes con
+su limpieza al cerrar la escena; el jefe no añade listeners ni timers externos.
+
+Oro: la implementación existente acredita únicamente al recoger y conserva
+el total en la pantalla de muerte. El siguiente intento empieza en cero.
+No hay cartera persistente ni una segunda acreditación en derrota/victoria;
+este incremento no introduce una economía nueva.
+
+Verificado mediante 56 pruebas de simulación: mejoras reales, aparición única,
+spawn separado en bordes/mástil, conservación de drops, pausa manual/cartas en
+cada fase y balas, dirección fija, trayectoria lateral de esquiva y hueco del
+abanico, límites/caducidad, invulnerabilidad, victoria única antes del daño
+pendiente y cinco muertes/reinicios sin duplicar entidades ni monedas.
+TypeScript y compilación de producción comprobados. La prueba de dificultad
+más allá de 180 s usa llegada infinita exclusivamente en tests para aislar la horda.
+
+Comprobación visual en navegador: inicio acelerado, barra/nombre, daño del sable
+al jefe, daño de carga, reloj detenido en pausa y un reinicio desde pausa. La victoria visual, todos los reinicios de escena,
+la comodidad de esquiva y la duración real con mejoras habituales requieren
+más juego humano. El objetivo 30–60 s es una estimación: 1500 HP a 45 DPS
+efectivos son ~33 s, más tiempo de aproximación/esquiva. No es una garantía.
+Ajustar HP, recuperación, velocidad de carga y separación/velocidad de balas.
+
+Prueba rápida: `npm run dev` y `/?bossAfter=3`. Solo el modo de desarrollo
+acepta ese parámetro positivo; producción siempre usa los 180 s de `BOSS`.
+No se añade isla, navegación, cofres, armas ni multijugador. La victoria es el
+final temporal del prototipo; estas reglas no fijan el diseño definitivo.
+
+
+## Actualización: expedición barco → isla (30-10-2026)
+
+El apartado anterior de «capitán y final del barco» es histórico: la victoria
+del capitán ahora abre una transición y la victoria final exige sobrevivir a
+la isla. Reglas provisionales vigentes, implementación y verificación en
+`docs/GAME_DESIGN.md`, sección 15. La expedición conserva mejoras y estadísticas
+entre ambas etapas; la isla dura 120 s y usa esqueletos y cangrejos, sin otro jefe.

@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { ISLAND, ROCKS } from './island.ts';
+import { BOSS } from './boss.ts';
 import { Arena, GOLD, MAST, WORLD } from './arena.ts';
 import type { GroundPickup } from './arena.ts';
 import { EXPERIENCE } from './progression.ts';
@@ -7,6 +9,16 @@ import { SABRE } from './combat.ts';
 import type { SlashEvent } from './combat.ts';
 
 export interface ArenaStatus {
+  stage: 'ship' | 'island';
+  stageElapsed: number;
+  islandRemaining: number;
+  transitioning: boolean;
+  healPercent: number;
+  won: boolean;
+  bossHp: number | null;
+  bossMaxHp: number;
+  bossArrival: number;
+  bossNotice: boolean;
   hp: number;
   maxHp: number;
   kills: number;
@@ -18,6 +30,7 @@ export interface ArenaStatus {
   options: readonly UpgradeOption[];
   elapsed: number;
   cooldown: number;
+  attackInterval: number;
   paused: boolean;
   dead: boolean;
 }
@@ -30,11 +43,14 @@ export class ArenaScene extends Phaser.Scene {
   arena!: Arena;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private captain!: PirateView;
+  private bossView: PirateView | null = null;
+  private bossEffects!: Phaser.GameObjects.Graphics;
   private pirates = new Map<number, PirateView>();
   private goldViews = new Map<number, PickupView>();
   private xpViews = new Map<number, PickupView>();
   private effects!: Phaser.GameObjects.Graphics;
   private healthBars!: Phaser.GameObjects.Graphics;
+  private terrain: Phaser.GameObjects.Graphics[] = [];
   private mast!: Phaser.GameObjects.Graphics;
   private slash: { event: SlashEvent; age: number } | null = null;
   private labels: FloatingText[] = [];
@@ -45,7 +61,17 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   create() {
-    this.arena = new Arena();
+    const requested = Number(new URLSearchParams(location.search).get('bossAfter'));
+    const arrival = import.meta.env.DEV && Number.isFinite(requested) && requested > 0 ? requested : BOSS.arrival;
+    const params = new URLSearchParams(location.search);
+    const devNumber = (key: string, fallback: number) => {
+      const value = Number(params.get(key));
+      return import.meta.env.DEV && Number.isFinite(value) && value > 0 ? value : fallback;
+    };
+    this.arena = new Arena(Math.random, { ...BOSS, arrival, hp: devNumber('bossHp', BOSS.hp) },
+      { ...ISLAND, duration: devNumber('islandDuration', ISLAND.duration) });
+    this.terrain = [];
+    this.bossView = null;
     this.pirates = new Map();
     this.goldViews = new Map();
     this.xpViews = new Map();
@@ -69,6 +95,7 @@ export class ArenaScene extends Phaser.Scene {
       this.labels = [];
     });
     this.captain = this.makePirate('captain', this.arena.player.x, this.arena.player.y);
+    this.bossEffects = this.add.graphics().setDepth(4999);
     this.effects = this.add.graphics().setDepth(5000);
     this.healthBars = this.add.graphics().setDepth(5001);
     this.renderArena(0);
@@ -90,8 +117,29 @@ export class ArenaScene extends Phaser.Scene {
     return true;
   }
 
+  disembark() {
+    if (!this.arena.disembark()) return false;
+    this.input.keyboard?.resetKeys();
+    this.slash = null;
+    this.effects.clear();
+    this.bossEffects.clear();
+    this.bossView?.body.destroy();
+    this.bossView?.shadow.destroy();
+    this.bossView = null;
+    for (const label of this.labels) label.text.destroy();
+    this.labels = [];
+    for (const object of this.terrain) object.destroy();
+    this.terrain = [];
+    this.drawIsland();
+    const world = this.arena.world;
+    this.cameras.main.setBounds(0, 0, world.width, world.height);
+    this.renderArena(0);
+    this.emitStatus();
+    return true;
+  }
+
   private pauseOnBlur() {
-    if (this.arena.player.hp > 0) {
+    if (this.arena.player.hp > 0 && !this.arena.won && !this.arena.transitioning) {
       this.arena.paused = true;
       this.input.keyboard?.resetKeys();
       this.emitStatus();
@@ -99,7 +147,7 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    if (!this.arena || this.arena.paused || this.arena.player.hp <= 0) return;
+    if (!this.arena || this.arena.paused || this.arena.player.hp <= 0 || this.arena.won || this.arena.transitioning) return;
     const dt = Math.min(delta / 1000, 0.1);
     const input = {
       x: Number(this.keys.D.isDown || this.keys.RIGHT.isDown) - Number(this.keys.A.isDown || this.keys.LEFT.isDown),
@@ -124,9 +172,13 @@ export class ArenaScene extends Phaser.Scene {
     }
     if (this.arena.progression.xp !== oldXp || this.arena.progression.level !== oldLevel) this.statusIn = 0;
     if (this.arena.progression.needsChoice) this.input.keyboard?.resetKeys();
+    if (this.arena.transitioning || this.arena.won) {
+      this.slash = null;
+      this.effects.clear();
+    }
     this.renderArena(dt);
     this.statusIn -= dt;
-    if (this.statusIn <= 0 || this.arena.player.hp <= 0) {
+    if (this.statusIn <= 0 || this.arena.player.hp <= 0 || this.arena.won || this.arena.transitioning) {
       this.statusIn = 0.08;
       this.emitStatus();
     }
@@ -135,10 +187,16 @@ export class ArenaScene extends Phaser.Scene {
   private emitStatus() {
     const arena = this.arena;
     const status: ArenaStatus = {
+      stage: arena.stage, stageElapsed: arena.stageElapsed,
+      islandRemaining: Math.max(0, arena.islandConfig.duration - arena.stageElapsed),
+      transitioning: arena.transitioning, healPercent: arena.islandConfig.healFraction * 100,
+      won: arena.won, bossHp: arena.boss?.hp ?? null, bossMaxHp: arena.bossConfig.hp,
+      bossArrival: Math.max(0, arena.bossConfig.arrival - arena.stageElapsed), bossNotice: arena.bossNotice > 0,
       hp: arena.player.hp, maxHp: arena.player.maxHp, kills: arena.kills, gold: arena.gold,
       level: arena.progression.level, xp: arena.progression.xp, requiredXp: arena.progression.requiredXp,
       choiceLevel: arena.progression.pendingLevels[0] ?? null, options: arena.progression.options,
       elapsed: arena.elapsed, cooldown: arena.attack.cooldownRemaining,
+      attackInterval: arena.attack.interval,
       paused: arena.paused, dead: arena.player.hp <= 0,
     };
     this.game.events.emit('arena-status', status);
@@ -176,7 +234,7 @@ export class ArenaScene extends Phaser.Scene {
     for (const enemy of this.arena.enemies) {
       let view = this.pirates.get(enemy.id);
       if (!view) {
-        view = this.makePirate(`pirate-${enemy.variant}`, enemy.x, enemy.y);
+        view = this.makePirate(enemy.kind === 'skeleton' ? 'skeleton' : enemy.kind === 'crab' ? 'crab' : `pirate-${enemy.variant}`, enemy.x, enemy.y);
         this.pirates.set(enemy.id, view);
       }
       view.body.setPosition(Math.round(enemy.x), Math.round(enemy.y + Math.sin(this.arena.elapsed * 11 + enemy.id) * 0.7)).setDepth(enemy.y).setFlipX(player.x < enemy.x);
@@ -189,11 +247,12 @@ export class ArenaScene extends Phaser.Scene {
       }
     }
     // Only the base collides; the tall mast becomes translucent over the captain.
-    this.mast.setAlpha(Math.abs(player.x - MAST.x) < 26 && player.y < MAST.y && player.y > MAST.y - 450 ? 0.38 : 1);
+    if (this.arena.stage === 'ship') this.mast.setAlpha(Math.abs(player.x - MAST.x) < 26 && player.y < MAST.y && player.y > MAST.y - 450 ? 0.38 : 1);
     this.cameras.main.setScroll(
-      Phaser.Math.Clamp(player.x - 480, 0, WORLD.width - 960),
-      Phaser.Math.Clamp(player.y - 350, 0, WORLD.height - 540),
+      Phaser.Math.Clamp(player.x - 480, 0, this.arena.world.width - 960),
+      Phaser.Math.Clamp(player.y - 350, 0, this.arena.world.height - 540),
     );
+    this.renderBoss();
     this.renderSlash(dt);
     this.labels = this.labels.filter(label => {
       label.age += dt;
@@ -202,6 +261,61 @@ export class ArenaScene extends Phaser.Scene {
       label.text.destroy();
       return false;
     });
+  }
+
+  private renderBoss() {
+    const g = this.bossEffects.clear();
+    const b = this.arena.boss;
+    this.renderCrabSignals(g);
+    if (!b) return;
+    if (!this.bossView) {
+      this.bossView = this.makePirate('pirate-0', b.x, b.y);
+      this.bossView.body.setScale(2.6);
+      this.bossView.shadow.setScale(1.8);
+    }
+    const view = this.bossView;
+    view.body.setVisible(b.hp > 0).setPosition(b.x, b.y).setDepth(b.y).setFlipX(this.arena.player.x < b.x);
+    view.shadow.setVisible(b.hp > 0).setPosition(b.x, b.y).setDepth(b.y - 0.1);
+    if (b.flash > 0) view.body.setTint(0xfff2d6).setTintMode(Phaser.TintModes.FILL);
+    else view.body.clearTint();
+    if (this.arena.won || this.arena.transitioning || this.arena.player.hp <= 0) return;
+    const c = this.arena.bossConfig;
+    // Amber outlines are harmless warnings; solid red marks active hazards.
+    if (b.phase === 'charge-warning') {
+      const length = c.chargeSpeed * c.chargeDuration;
+      const nx = -Math.sin(b.angle) * b.radius, ny = Math.cos(b.angle) * b.radius;
+      const ex = b.x + Math.cos(b.angle) * length, ey = b.y + Math.sin(b.angle) * length;
+      g.lineStyle(2, 0xffdf78, 0.95);
+      g.beginPath().moveTo(b.x + nx, b.y + ny).lineTo(ex + nx, ey + ny).lineTo(ex - nx, ey - ny).lineTo(b.x - nx, b.y - ny).closePath().strokePath();
+    } else if (b.phase === 'fan-warning') {
+      g.lineStyle(2, 0xffdf78, 0.9).strokeCircle(b.x, b.y, b.radius + 10);
+      for (let i = 0; i < c.projectileCount; i++) {
+        const a = b.angle + (i - (c.projectileCount - 1) / 2) * c.fanSpacing;
+        g.lineBetween(b.x + Math.cos(a) * 35, b.y + Math.sin(a) * 35, b.x + Math.cos(a) * 95, b.y + Math.sin(a) * 95);
+      }
+    } else if (b.phase === 'charge') {
+      g.fillStyle(0xff534f, 0.6).fillCircle(b.x, b.y, b.radius);
+    }
+    for (const p of this.arena.projectiles) {
+      g.fillStyle(0xf34c50).fillCircle(p.x, p.y, c.projectileRadius);
+      g.lineStyle(2, 0xffd2bd).strokeCircle(p.x, p.y, c.projectileRadius);
+    }
+  }
+
+  private renderCrabSignals(g: Phaser.GameObjects.Graphics) {
+    if (this.arena.won || this.arena.player.hp <= 0) return;
+    for (const enemy of this.arena.enemies) {
+      const state = enemy.crab;
+      if (!state) continue;
+      if (state.phase === 'warning') {
+        const c = this.arena.islandConfig.crab;
+        g.lineStyle(2, 0xffdf78).strokeCircle(enemy.x, enemy.y, enemy.radius + 8);
+        const length = c.chargeSpeed * c.chargeDuration;
+        g.lineBetween(enemy.x, enemy.y, enemy.x + Math.cos(state.angle) * length, enemy.y + Math.sin(state.angle) * length);
+      } else if (state.phase === 'charge') {
+        g.fillStyle(0xff534f, 0.65).fillCircle(enemy.x, enemy.y, enemy.radius);
+      }
+    }
   }
 
   private renderPickups(drops: readonly GroundPickup[], views: Map<number, PickupView>, texture: string, pickupDelay: number) {
@@ -254,6 +368,20 @@ export class ArenaScene extends Phaser.Scene {
   }
 
   private makeTextures() {
+    if (!this.textures.exists('skeleton')) {
+      const g = this.add.graphics();
+      g.fillStyle(0xe5dfc4).fillRect(7, 2, 12, 10).fillRect(11, 12, 4, 11).fillRect(4, 14, 17, 3).fillRect(5, 20, 15, 3).fillRect(7, 23, 4, 8).fillRect(15, 23, 4, 8);
+      g.fillStyle(0x28343a).fillRect(9, 5, 3, 3).fillRect(15, 5, 3, 3);
+      g.generateTexture('skeleton', 25, 32); g.destroy();
+    }
+    if (!this.textures.exists('crab')) {
+      const g = this.add.graphics();
+      g.fillStyle(0xa74832).fillRect(3, 13, 26, 11).fillRect(1, 24, 6, 5).fillRect(25, 24, 6, 5).fillRect(0, 7, 7, 9).fillRect(25, 7, 7, 9);
+      g.fillStyle(0xe88550).fillRect(7, 12, 18, 10).fillRect(1, 5, 5, 6).fillRect(26, 5, 5, 6);
+      g.fillStyle(0xf5eac5).fillRect(10, 8, 4, 5).fillRect(18, 8, 4, 5);
+      g.fillStyle(0x202e30).fillRect(11, 9, 2, 2).fillRect(19, 9, 2, 2);
+      g.generateTexture('crab', 32, 30); g.destroy();
+    }
     if (!this.textures.exists('xp-crystal')) {
       const crystal = this.add.graphics();
       crystal.fillStyle(0x184e69).fillRect(5, 0, 4, 16).fillRect(3, 3, 8, 10).fillRect(1, 6, 12, 4);
@@ -300,6 +428,27 @@ export class ArenaScene extends Phaser.Scene {
     }
   }
 
+  private drawIsland() {
+    const world = this.arena.world;
+    const g = this.add.graphics().setDepth(-100);
+    g.fillStyle(0x26747b).fillRect(0, 0, world.width, world.height);
+    g.fillStyle(0xd4bb78).fillRect(0, world.deckTop, world.width, world.height - world.deckTop);
+    g.fillStyle(0x718c57).fillRoundedRect(70, world.deckTop + 70, world.width - 140, world.height - world.deckTop - 140, 100);
+    g.lineStyle(8, 0xf2d496).strokeRect(4, world.deckTop + 4, world.width - 8, world.height - world.deckTop - 8);
+    for (let x = 120; x < world.width - 80; x += 137) {
+      for (let y = 160; y < world.height - 80; y += 127) g.fillStyle(0x547349, 0.5).fillRect(x, y, 9, 3).fillRect(x + 4, y - 4, 2, 6);
+    }
+    this.terrain.push(g);
+    for (const rock of ROCKS) {
+      const r = this.add.graphics().setDepth(-20);
+      r.fillStyle(0x293e36, 0.4).fillEllipse(rock.x + 10, rock.y + 10, rock.radius * 2.1, rock.radius * 1.8);
+      r.fillStyle(0x697579).fillCircle(rock.x, rock.y, rock.radius);
+      r.lineStyle(4, 0xb3b8a0).strokeCircle(rock.x, rock.y, rock.radius - 2);
+      r.fillStyle(0x899590).fillEllipse(rock.x - rock.radius / 4, rock.y - rock.radius / 4, rock.radius, rock.radius / 2);
+      this.terrain.push(r);
+    }
+  }
+
   private drawDeck() {
     const g = this.add.graphics().setDepth(-100);
     g.fillStyle(0x26747b).fillRect(0, 0, WORLD.width, WORLD.height);
@@ -333,6 +482,7 @@ export class ArenaScene extends Phaser.Scene {
     this.mast.fillStyle(0x4d3524).fillRect(MAST.x - 16, MAST.y - 500, 32, 504);
     this.mast.fillStyle(0x92633a).fillRect(MAST.x - 11, MAST.y - 500, 20, 500);
     this.mast.fillStyle(0xb38047).fillRect(MAST.x - 8, MAST.y - 500, 5, 498);
+    this.terrain.push(g, base, this.mast);
     for (let y = MAST.y - 480; y < MAST.y; y += 52) this.mast.fillStyle(0x534637).fillRect(MAST.x - 17, y, 34, 6);
   }
 }

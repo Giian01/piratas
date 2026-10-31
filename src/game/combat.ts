@@ -41,6 +41,7 @@ export interface SlashEvent {
 /** One instantaneous sector hit per cast. Rendering never applies damage. */
 export class PhysicalAttack {
   cooldownRemaining = 0;
+  interval: number = SABRE.cooldown;
   private random: () => number;
 
   constructor(random: () => number = Math.random) {
@@ -49,6 +50,13 @@ export class PhysicalAttack {
 
   reset() {
     this.cooldownRemaining = 0;
+    this.interval = SABRE.cooldown;
+  }
+
+  setInterval(interval: number) {
+    // Preserve progress through the current cooldown when frequency changes.
+    this.cooldownRemaining *= interval / this.interval;
+    this.interval = interval;
   }
 
   tick(dt: number, attacker: Attacker, enemies: readonly Target[]): SlashEvent | null {
@@ -69,7 +77,7 @@ export class PhysicalAttack {
     if (nearestDistance > 0) attacker.aim = Math.atan2(nearest.y - attacker.y, nearest.x - attacker.x);
     if (this.cooldownRemaining > 1e-9) return null;
 
-    this.cooldownRemaining = SABRE.cooldown;
+    this.cooldownRemaining = this.interval;
     const event: SlashEvent = { x: attacker.x, y: attacker.y, angle: attacker.aim, hits: [] };
     const hitIds = new Set<number>();
     for (const enemy of enemies) {
